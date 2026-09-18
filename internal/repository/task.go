@@ -89,3 +89,34 @@ func GetAllTasks(pool *pgxpool.Pool) ([]models.Task, error) {
 
 	return tasks, nil
 }
+
+func GetTaskById(pool *pgxpool.Pool, id int) (*models.Task, error) {
+	var ctx context.Context
+	var cancel context.CancelFunc
+
+	ctx, cancel = context.WithTimeout(context.Background(), 5 * time.Second)
+
+	defer cancel()
+
+	query := `
+		SELECT id, title, description, completed, created_at, updated_at
+		FROM todos
+		WHERE id = $1
+	`
+	var task models.Task
+	err := pool.QueryRow(ctx, query, id).Scan(
+		&task.Id,
+		&task.Title,
+		&task.Description,
+		&task.Completed,
+		&task.CreatedAt,
+		&task.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &task, nil
+}
+
