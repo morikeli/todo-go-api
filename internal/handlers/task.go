@@ -56,3 +56,31 @@ func GetAllTasksHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 		c.JSON(http.StatusOK, tasks)
 	}
 }
+
+func GetTaskByIdHandler(pool *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		taskId := c.Param("id")
+
+		// convert an int or number enclosed in "" to an integer (without the string), e.g. "2" to 2
+		id, err := strconv.Atoi(taskId)
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		task, err := repo.GetTaskById(pool, id)
+
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Task not found!"})
+				return
+			}
+
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, task)
+	}
+}
