@@ -64,3 +64,32 @@ func GetUserByEmailAddress(pool *pgxpool.Pool, email string) (*models.User, erro
 
 	return &user, nil
 }
+
+func GetUserById(pool *pgxpool.Pool, id int) (*models.User, error) {
+	var ctx context.Context
+	var cancel context.CancelFunc
+	var user models.User
+
+	ctx, cancel = context.WithTimeout(context.Background(), 5 * time.Second)
+	defer cancel()
+
+	query := `
+		SELECT id, email, password, created_at, updated_at
+		FROM users
+		WHERE id = $1
+	`
+
+	err := pool.QueryRow(ctx, query, id).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
