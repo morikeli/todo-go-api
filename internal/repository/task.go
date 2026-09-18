@@ -154,3 +154,29 @@ func UpdateTask(pool *pgxpool.Pool, id int, title *string, description *string, 
 	return &task, nil
 
 }
+
+func DeleteTask(pool *pgxpool.Pool, id int) error {
+	var ctx context.Context
+	var cancel context.CancelFunc
+
+	ctx, cancel = context.WithTimeout(context.Background(), 5 * time.Second)
+
+	defer cancel()
+
+	query := `
+		DELETE FROM todos
+		WHERE id = $1
+	`
+
+	cmd, err := pool.Exec(ctx, query, id)
+
+	if err != nil {
+		return err
+	}
+
+	if cmd.RowsAffected() == 0 {
+		return fmt.Errorf("Task with id %d not found!", id)
+	}
+
+	return nil	// success
+}
