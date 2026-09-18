@@ -16,6 +16,12 @@ type CreateTaskRequest struct {
 	Completed   bool    `json:"is_completed"`
 }
 
+type UpdateTaskRequest struct {
+	Title       *string `json:"title"`
+	Description *string `json:"description"`
+	Completed   bool    `json:"is_completed"`
+}
+
 func CreateTaskHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var input CreateTaskRequest
@@ -35,5 +41,18 @@ func CreateTaskHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 
 		c.JSON(http.StatusCreated, task)
 
+	}
+}
+
+func GetAllTasksHandler(pool *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tasks, err := repo.GetAllTasks(pool)
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, tasks)
 	}
 }
