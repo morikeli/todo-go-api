@@ -39,3 +39,53 @@ func CreateTask(pool *pgxpool.Pool, title string, description *string, completed
 	return &task, nil
 
 }
+
+func GetAllTasks(pool *pgxpool.Pool) ([]models.Task, error) {
+	var ctx context.Context
+	var cancel context.CancelFunc
+
+	ctx, cancel = context.WithTimeout(context.Background(), 5 * time.Second)
+
+	defer cancel()
+
+	query := `
+		SELECT id, title, description, completed, created_at, updated_at
+		FROM todos
+		ORDER BY created_at DESC
+		`
+
+	rows, err := pool.Query(ctx, query)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	tasks := []models.Task{}
+
+	for rows.Next() {
+		var task models.Task
+
+		err := rows.Scan(
+			&task.Id,
+			&task.Title,
+			&task.Description,
+			&task.Completed,
+			&task.CreatedAt,
+			&task.UpdatedAt,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tasks, nil
+}
