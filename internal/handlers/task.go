@@ -84,3 +84,36 @@ func GetTaskByIdHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 		c.JSON(http.StatusOK, task)
 	}
 }
+
+func UpdateTaskHandler(pool *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		taskId := c.Param("id")
+
+		id, err := strconv.Atoi(taskId)
+
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID provided!"})
+			return
+		}
+
+		var payload UpdateTaskRequest
+
+		if err := c.ShouldBindJSON(&payload); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		task, err := repo.UpdateTask(pool, id, payload.Title, payload.Description, payload.Completed)
+
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Task not found!"})
+				return
+			}
+
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+
+		c.JSON(http.StatusOK, task)
+	}
+}
