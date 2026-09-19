@@ -10,6 +10,7 @@ import (
 type Config struct {
 	DatabaseURL string
 	Port string
+	SecretKey string
 }
 
 func Load() (*Config, error) {
@@ -22,6 +23,7 @@ func Load() (*Config, error) {
 	var config *Config = &Config {
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		Port: os.Getenv("APP_PORT"),
+		SecretKey: os.Getenv("SECRET_KEY"),
 	}
 
 	return config, nil
