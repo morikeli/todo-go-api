@@ -9,25 +9,26 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func CreateTask(pool *pgxpool.Pool, title string, description *string, completed bool) (*models.Task, error) {
+func CreateTask(pool *pgxpool.Pool, title string, description *string, completed bool, userId string) (*models.Task, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
-	ctx, cancel = context.WithTimeout(context.Background(), 5000*time.Millisecond)
+	ctx, cancel = context.WithTimeout(context.Background(), 5000 * time.Millisecond)
 
 	defer cancel()
 
 	query := `
-		INSERT INTO todos (title, description, completed)
-		VALUES ($1, $2, $3)
-		RETURNING id, title, description, completed, created_at, updated_at
+		INSERT INTO todos (title, description, completed, user_id)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, title, description, completed, user_id, created_at, updated_at
 	`
 	var task models.Task
-	err := pool.QueryRow(ctx, query, title, description, completed).Scan(
+	err := pool.QueryRow(ctx, query, title, description, completed, userId).Scan(
 		&task.Id,
 		&task.Title,
 		&task.Description,
 		&task.Completed,
+		&task.UserId,
 		&task.CreatedAt,
 		&task.UpdatedAt,
 	)
@@ -40,7 +41,7 @@ func CreateTask(pool *pgxpool.Pool, title string, description *string, completed
 
 }
 
-func GetAllTasks(pool *pgxpool.Pool) ([]models.Task, error) {
+func GetAllTasks(pool *pgxpool.Pool, userId string) ([]models.Task, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -49,12 +50,13 @@ func GetAllTasks(pool *pgxpool.Pool) ([]models.Task, error) {
 	defer cancel()
 
 	query := `
-		SELECT id, title, description, completed, created_at, updated_at
+		SELECT id, user_id, title, description, completed, created_at, updated_at
 		FROM todos
+		WHERE user_id = $1
 		ORDER BY created_at DESC
 		`
 
-	rows, err := pool.Query(ctx, query)
+	rows, err := pool.Query(ctx, query, userId)
 
 	if err != nil {
 		return nil, err
@@ -69,6 +71,7 @@ func GetAllTasks(pool *pgxpool.Pool) ([]models.Task, error) {
 
 		err := rows.Scan(
 			&task.Id,
+			&task.UserId,
 			&task.Title,
 			&task.Description,
 			&task.Completed,
@@ -90,7 +93,7 @@ func GetAllTasks(pool *pgxpool.Pool) ([]models.Task, error) {
 	return tasks, nil
 }
 
-func GetTaskById(pool *pgxpool.Pool, id int) (*models.Task, error) {
+func GetTaskById(pool *pgxpool.Pool, id int, userId string) (*models.Task, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -99,13 +102,14 @@ func GetTaskById(pool *pgxpool.Pool, id int) (*models.Task, error) {
 	defer cancel()
 
 	query := `
-		SELECT id, title, description, completed, created_at, updated_at
+		SELECT id, user_id, title, description, completed, created_at, updated_at
 		FROM todos
-		WHERE id = $1
+		WHERE id = $1 AND user_id = $2
 	`
 	var task models.Task
-	err := pool.QueryRow(ctx, query, id).Scan(
+	err := pool.QueryRow(ctx, query, id, userId).Scan(
 		&task.Id,
+		&task.UserId,
 		&task.Title,
 		&task.Description,
 		&task.Completed,
@@ -120,7 +124,7 @@ func GetTaskById(pool *pgxpool.Pool, id int) (*models.Task, error) {
 	return &task, nil
 }
 
-func UpdateTask(pool *pgxpool.Pool, id int, title *string, description *string, completed bool) (*models.Task, error) {
+func UpdateTask(pool *pgxpool.Pool, id int, title *string, description *string, completed bool, userId string) (*models.Task, error) {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -134,12 +138,13 @@ func UpdateTask(pool *pgxpool.Pool, id int, title *string, description *string, 
 			description = COALESCE($2, description),
 			completed = $3,
 			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $4
-		RETURNING id, title, description, completed, created_at, updated_at
+		WHERE id = $4 AND user_id = $5
+		RETURNING id, user_id, title, description, completed, created_at, updated_at
 	`
 	var task models.Task
-	err := pool.QueryRow(ctx, query, title, description, completed, id).Scan(
+	err := pool.QueryRow(ctx, query, title, description, completed, id, userId).Scan(
 		&task.Id,
+		&task.UserId,
 		&task.Title,
 		&task.Description,
 		&task.Completed,
@@ -155,7 +160,7 @@ func UpdateTask(pool *pgxpool.Pool, id int, title *string, description *string, 
 
 }
 
-func DeleteTask(pool *pgxpool.Pool, id int) error {
+func DeleteTask(pool *pgxpool.Pool, id int, userId string) error {
 	var ctx context.Context
 	var cancel context.CancelFunc
 
@@ -165,10 +170,10 @@ func DeleteTask(pool *pgxpool.Pool, id int) error {
 
 	query := `
 		DELETE FROM todos
-		WHERE id = $1
+		WHERE id = $1 AND user_id = $2
 	`
 
-	cmd, err := pool.Exec(ctx, query, id)
+	cmd, err := pool.Exec(ctx, query, id, userId)
 
 	if err != nil {
 		return err
