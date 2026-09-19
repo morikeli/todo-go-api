@@ -24,6 +24,16 @@ type UpdateTaskRequest struct {
 
 func CreateTaskHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		user, exists := c.Get("user_id")
+
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID unavailable in context!"})
+			return
+		}
+
+		// interface{}. In modern Go, any{} is used
+		userId := user.(string)
+
 		var input CreateTaskRequest
 
 		// Check if the request body is valid JSON and bind it to the input struct
@@ -32,7 +42,7 @@ func CreateTaskHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		task, err := repo.CreateTask(pool, input.Title, input.Description, input.Completed)
+		task, err := repo.CreateTask(pool, input.Title, input.Description, input.Completed, userId)
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -46,7 +56,16 @@ func CreateTaskHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 
 func GetAllTasksHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tasks, err := repo.GetAllTasks(pool)
+		user, exists := c.Get("user_id")
+
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID unavailable in context!"})
+			return
+		}
+
+		userId := user.(string)
+
+		tasks, err := repo.GetAllTasks(pool, userId)
 
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -69,7 +88,16 @@ func GetTaskByIdHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		task, err := repo.GetTaskById(pool, id)
+		user, exists := c.Get("user_id")
+
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID unavailable in context!"})
+			return
+		}
+
+		userId := user.(string)
+
+		task, err := repo.GetTaskById(pool, id, userId)
 
 		if err != nil {
 			if err == pgx.ErrNoRows {
@@ -96,6 +124,15 @@ func UpdateTaskHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
+		user, exists := c.Get("user_id")
+
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID unavailable in context!"})
+			return
+		}
+
+		userId := user.(string)
+
 		var payload UpdateTaskRequest
 
 		if err := c.ShouldBindJSON(&payload); err != nil {
@@ -103,7 +140,7 @@ func UpdateTaskHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		task, err := repo.UpdateTask(pool, id, payload.Title, payload.Description, payload.Completed)
+		task, err := repo.UpdateTask(pool, id, payload.Title, payload.Description, payload.Completed, userId)
 
 		if err != nil {
 			if err == pgx.ErrNoRows {
@@ -129,7 +166,16 @@ func DeleteTaskHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		err = repo.DeleteTask(pool, id)
+		user, exists := c.Get("user_id")
+
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID unavailable in context!"})
+			return
+		}
+
+		userId := user.(string)
+
+		err = repo.DeleteTask(pool, id, userId)
 
 		if err != nil {
 			errorMessage := "Task with id " + taskId + "not found!"
