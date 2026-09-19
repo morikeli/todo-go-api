@@ -30,6 +30,19 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
+func TestProtectedHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userId, exists := c.Get("user_id")
+
+		if !exists {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "user_id not found in context!"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Protected route accessed successfully!", "user_id": userId})
+	}
+}
+
 func LoginHandler(pool *pgxpool.Pool, config *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var payload LoginRequest
