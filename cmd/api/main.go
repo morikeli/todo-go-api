@@ -5,6 +5,7 @@ import (
 	"todo-api/internal/config"
 	database "todo-api/internal/db"
 	"todo-api/internal/handlers"
+	"todo-api/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,11 +44,20 @@ func main() {
 		})
 	})
 
-	router.POST("/task/create", handlers.CreateTaskHandler(pool))
-	router.GET("/tasks/all", handlers.GetAllTasksHandler(pool))
-	router.GET("/task/:id", handlers.GetTaskByIdHandler(pool))
-	router.PUT("/task/:id/update", handlers.UpdateTaskHandler(pool))
-	router.DELETE("/task/:id/delete", handlers.DeleteTaskHandler(pool))
+	router.POST("/auth/signup", handlers.SignupHandler(pool))
+	router.POST("/auth/login", handlers.LoginHandler(pool, cfg))
+
+	protectedRouters := router.Group("/task")
+	protectedRouters.Use(middleware.AuthMiddleware(cfg))
+	protectedRouters.POST("", handlers.CreateTaskHandler(pool))
+	protectedRouters.GET("/all", handlers.GetAllTasksHandler(pool))
+	protectedRouters.GET("/:id", handlers.GetTaskByIdHandler(pool))
+	protectedRouters.PUT("/:id", handlers.UpdateTaskHandler(pool))
+	protectedRouters.DELETE("/:id", handlers.DeleteTaskHandler(pool))
+
+
+	// Test route
+	router.GET("/test", middleware.AuthMiddleware(cfg), handlers.TestProtectedHandler())
 
 	router.Run(":" + cfg.Port)
 
