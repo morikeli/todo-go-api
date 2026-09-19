@@ -21,6 +21,60 @@ type SignupRequest struct {
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
 }
 
+type LoginRequest struct {
+	Email string `json:"email" binding:"required"`
+	Password string `json:"password" biding:"required"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
+}
+
+func LoginHandler(pool *pgxpool.Pool, config *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var payload LoginRequest
+
+		if err := c.ShouldBindJSON(&payload); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		user, err := repo.GetUserByEmailAddress(pool, payload.Email)
+
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials provided!"})
+			return
+		}
+
+		// Validate password
+		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(payload.Password))
+		
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials provided!"})
+			return
+		}
+
+		// payload received with the JWT
+		claims := jwt.MapClaims{
+			"user_id": user.ID,
+			"email": user.Email,
+			"exp": time.Now().Add(24 * time.Hour).Unix(),
+		}
+
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+		// create token string
+		tokenStr, err := token.SignedString([]byte(config.SecretKey))
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Token could not be generated: " + err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, LoginResponse{Token: tokenStr})
+	}
+}
+
 func SignupHandler(pool *pgxpool.Pool) gin.HandlerFunc {
     return func(c *gin.Context) {
         var payload SignupRequest
