@@ -113,41 +113,6 @@ SECRET_KEY=replace_with_a_long_random_secret
 
 Keep `.env` out of version control and use a strong, unique `SECRET_KEY` outside local development.
 
-### Local installation
-
-1. Clone the repository and enter the project directory:
-
-```bash
-git clone <repository-url>
-cd to-do-app
-```
-
-2. Install the migration CLI:
-
-```bash
-go install -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-```
-
-3. Start PostgreSQL. You can start only the database service with Docker Compose:
-
-```bash
-docker compose up -d db
-```
-
-4. Apply the database migrations:
-
-```bash
-./scripts/migrate.sh
-```
-
-5. Start the API:
-
-```bash
-go run ./cmd/api
-```
-
-The API is available at `http://localhost:8000` unless `APP_PORT` is changed.
-
 ### Docker installation guide
 
 #### Prerequisites
@@ -161,7 +126,14 @@ docker compose version
 
 #### Run with Docker Compose
 
-1. Create a `.env` file in the project root. Use `db` as the database host because the API connects to PostgreSQL through the Compose network:
+1. Clone the repository and enter the project directory:
+
+```bash
+git clone <repository-url>
+cd to-do-app
+```
+
+2. Create a `.env` file in the project root. Use `db` as the database host because the API connects to PostgreSQL through the Compose network:
 
 ```dotenv
 DB_USER=superuser
@@ -174,19 +146,19 @@ APP_PORT=8000
 SECRET_KEY=replace_with_a_long_random_secret
 ```
 
-2. Build the development image and start the API with PostgreSQL:
+3. Start the app and database containers:
 
 ```bash
 docker compose up --build
 ```
 
-3. In a separate terminal, apply the database migrations:
+4. In a separate terminal, apply the database migrations:
 
 ```bash
 ./scripts/migrate.sh
 ```
 
-4. Open the API at `http://localhost:8000`. The development image uses Air for hot reloading.
+5. Open the API at `http://localhost:8000`. The development image uses Air for hot reloading.
 
 Stop the services and remove the containers with:
 
@@ -215,6 +187,112 @@ docker run --env-file .env -p 8000:8000 todo-api
 ```
 
 The production container still requires access to a running PostgreSQL instance. Set `DATABASE_URL` to a hostname reachable from the container before starting it.
+
+### Migration commands
+
+This project uses the Go `migrate` CLI and the wrapper script in `scripts/migrate.sh`. The script automatically starts the PostgreSQL container, waits for it to become healthy, and then forwards every argument to the migrate command.
+
+#### Apply all available migrations
+
+```bash
+./scripts/migrate.sh up
+```
+
+This is the usual setup command after cloning the repo or when you want to bring the database to the latest version.
+
+#### Roll back the most recent migration
+
+```bash
+./scripts/migrate.sh down 1
+```
+
+This reverts the latest migration batch. Change the number to roll back multiple steps, for example: `./scripts/migrate.sh down 2`.
+
+#### Roll back all migrations
+
+```bash
+./scripts/migrate.sh down
+```
+
+This will revert all applied migrations in reverse order.
+
+#### Force a migration version
+
+Use this when a migration is marked as dirty or a previous migration needs to be forced in the `schema_migrations` table:
+
+```bash
+./scripts/migrate.sh force <migration-number>
+```
+
+Replace the value with the desired migration version number. This is mainly for recovery and should be used carefully.
+
+#### Check the migration status
+
+```bash
+./scripts/migrate.sh version
+```
+
+This prints the current migration version tracked by the database.
+
+### Optional local setup
+> [!TIP]
+> If you want to run the API without Docker, install the required tools locally and point the app to a local PostgreSQL instance.
+
+#### Install Go
+
+Download and install Go from the official site:
+
+- https://go.dev/dl/
+
+After installation, confirm it is available:
+
+```bash
+go version
+```
+
+#### Install PostgreSQL
+
+Install PostgreSQL locally and create a database for the app:
+
+- https://www.postgresql.org/download/
+
+Example local database values:
+
+```dotenv
+DB_USER=postgres
+DB_PASSWORD=your_password
+DB_NAME=todo_app_db
+DB_HOST=localhost
+DB_PORT=5432
+DATABASE_URL=postgres://postgres:your_password@localhost:5432/todo_app_db?sslmode=disable
+APP_PORT=8000
+SECRET_KEY=replace_with_a_long_random_secret
+```
+
+#### Install the migrate CLI
+
+Install the `migrate` tool used by this project:
+
+```bash
+go install -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+```
+
+Verify the binary is available:
+
+```bash
+migrate -version
+```
+
+#### Run the app locally
+
+Once PostgreSQL is running and the `.env` file is configured, apply migrations and start the API:
+
+```bash
+./scripts/migrate.sh up
+go run ./cmd/api
+```
+
+This is a fallback for local development and is not the recommended path for this project because the repository already includes a Dockerized workflow.
 
 ### Project structure
 
